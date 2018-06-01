@@ -91,6 +91,40 @@ EOF
       [[ $teamId == $teamDrive ]] && log "SA Accounts Configured to use team drives." INFO || log "Failed To Update Settings" FAIL
   fi
 }
+
+function configure_teamdrive_encrypt(){
+source $userSettings
+  if [[ -z $teamDrive ]]; then
+      log "No Teamdrive Configured in: usersettings.conf" WARN
+cat <<EOF
+
+a) If you already have data in a personal drive, you can
+   easily copy it over to the team drive.
+b) If you are using plexdrive, you need to migrate to rclone cache (to support TD)
+
+Additional limitations: 1) Only 250,000 files allowed per teamdrive
+                        2) Folders may only be 20 directories deep
+
+########## INSTRUCTIONS ###################################
+1) Make a Team Drive in the Gdrive webui.
+2) Find the Team Drive ID— [32mit looks like this:[0m
+   https://drive.google.com/drive/folders/[32m084g3BHcoUu8IHgWUo5PSA[0m
+###########################################################
+EOF
+
+      read -p 'Please Enter your Team Drive ID: ' teamId
+      sed -i '/'^teamDrive'=/ s/=.*/='$teamId'/' $userSettings
+      source $userSettings
+      [[ $teamId == $teamDrive ]] && log "SA Accounts Configured to use team drives." INFO || log "Failed To Update Settings" FAIL
+
+      read -p 'Please enter a password for the encryption process: ' unpassword 
+      read -p 'Please enter a salt for the encryption process: ' unsalt
+      rclone obsure $unpassword | read prepassword
+      rclone obsure $unsalt | read presalt
+      sed -i '/'^password'=/ s/=.*/='$prepassword'/' $userSettings
+      sed -i '/'^salt'=/ s/=.*/='$presalt'/' $userSettings
+  fi
+}
 configure_teamdrive
 configure_teamdrive_share
 #configure_personal_share
