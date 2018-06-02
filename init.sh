@@ -303,6 +303,43 @@ done
 return 0
 }
 
+configure_Json_encrypt(){
+source ${userSettings}
+#rclonePath=$(rclone -h | grep 'Config file. (default' | cut -f2 -d'"')
+rclonePath='/root/.config/rclone/rclone.conf'
+[[ -e ${rclonePath} ]] || mkdir -p ${rclonePath}
+[[ ! $(ls $jsonPath | egrep .json$) ]] && log "No Service Accounts Json Found." FAIL && exit 1
+# add rclone config for new keys if not already existing
+for json in ${jsonPath}/*.json; do
+  if [[ ! $(egrep  '^\[GDSA[0-9]+\]$' -A7 $rclonePath | grep $json) ]]; then
+    oldMaxGdsa=$(egrep  '^\[GDSA[0-9]+\]$' $rclonePath | sed 's/\[GDSA//g;s/\]//' | sort -g | tail -1)
+    newMaxGdsa=$((++oldMaxGdsa))
+cat <<-CFG >> $rclonePath
+[GDSA${newMaxGdsa}]
+type = drive
+client_id =
+client_secret =
+scope = drive
+root_folder_id = $rootFolderId
+service_account_file = $json
+team_drive = $teamDrive
+
+[GDSAC${newMaxGdsa}]
+type = crypt
+remote = GDSA${newMaxGdsa}:/encrypt
+filename_encryption = standard
+directory_name_encryption = true
+password = $password
+password2 = $salt
+
+CFG
+    ((++newGdsaCount))
+  fi
+done
+[[ -n $newGdsaCount ]] && log "$newGdsaCount New Gdrive Service Account Added." INFO
+return 0
+}
+
 # purge rclone of SA's
 purge_Rclone(){
 #  rclonePath=$(rclone -h | grep 'Config file. (default' | cut -f2 -d'"')
